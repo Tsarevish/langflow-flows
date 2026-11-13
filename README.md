@@ -34,14 +34,18 @@ references/
   patterns.md             типовые цепочки
   errors.md               диагностика: где искать настоящую причину
   versions.md             что меняется между версиями Langflow
+  guide.md                словарь курса и точные тексты ошибок (материалы курса)
+  course-flows.md         41 схема соединений (материалы курса)
 examples/                 три проверенные спеки
 scripts/
   probe_stand.py          снять профиль стенда + снапшот схем
   validate_spec.py        офлайн-проверка спеки
   dump_schema.py          только снапшот схем
   install.ps1             установка в DSH (Windows)
+  install.sh              установка в DSH (macOS / Linux)
 tests/                    регрессионные тесты валидатора
 VERIFICATION.md           что проверено и что нет
+NOTICE.md                 источники и права на материалы курса
 ```
 
 ## Установка
