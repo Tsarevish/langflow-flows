@@ -58,12 +58,16 @@ NOTICE.md                 источники и права на материал
 plugin_manager: install_bundle, target = github:Tsarevish/langflow-flows#path:/bundle
 ```
 
-Пакет `dsh-langflow-flows-skill` регистрирует отдельный провайдер скиллов с изолированными
-корнями и указывает ему на `skills/` внутри себя. После установки скилл виден агенту
-как `langflow-flows`, а сам бандл — в разделе «Плагины».
+Пакет `dsh-langflow-flows-skill` ставится в профиль и виден в разделе «Плагины».
 
-Ставит только скилл. MCP-сервер Langflow подключается отдельно — у каждого свой адрес
-и ключ, их нельзя зашить в пакет.
+**Важно:** автоматическая регистрация скилла патчем в сборке DSH 0.2.2-rc.1 не сработала,
+поэтому после установки бандла нужна одна команда — она ставит скилл из пакета:
+
+```
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.dsh\profiles\desktop\node_modules\dsh-langflow-flows-skill\skills\langflow-flows\scripts\install.ps1"
+```
+
+Подробности и статус проверки — в `bundle/README.md`.
 
 ### DSH: копированием
 
@@ -78,7 +82,7 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 Скрипт кладёт скилл в `%USERPROFILE%\.dsh\skills\langflow-flows`. Другой путь — параметр
 `-Target`. Обновление после `git pull` — тем же скриптом.
 
-Не ставь оба способа сразу: получится дубль `langflow-flows` в каталоге скиллов.
+Не ставь бандл и копирование одновременно: получится дубль `langflow-flows` в каталоге.
 
 ### Другие агенты (Claude Code, Claude Desktop, Codex)
 
