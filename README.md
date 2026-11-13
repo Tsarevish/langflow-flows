@@ -50,7 +50,20 @@ NOTICE.md                 источники и права на материал
 
 ## Установка
 
-### DSH (DeepSeek Harness)
+### DSH: плагин-бандл (появляется в «Плагинах»)
+
+```
+plugin_manager: install_bundle, target = github:Tsarevish/langflow-flows#path:/bundle
+```
+
+Пакет `dsh-langflow-flows-skill` регистрирует отдельный провайдер скиллов с изолированными
+корнями и указывает ему на `skills/` внутри себя. После установки скилл виден агенту
+как `langflow-flows`, а сам бандл — в разделе «Плагины».
+
+Ставит только скилл. MCP-сервер Langflow подключается отдельно — у каждого свой адрес
+и ключ, их нельзя зашить в пакет.
+
+### DSH: копированием
 
 DSH находит скиллы в файловой системе: каталог `<dshHome>/skills/<имя>/SKILL.md`.
 
@@ -62,6 +75,8 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 
 Скрипт кладёт скилл в `%USERPROFILE%\.dsh\skills\langflow-flows`. Другой путь — параметр
 `-Target`. Обновление после `git pull` — тем же скриптом.
+
+Не ставь оба способа сразу: получится дубль `langflow-flows` в каталоге скиллов.
 
 ### Другие агенты (Claude Code, Claude Desktop, Codex)
 

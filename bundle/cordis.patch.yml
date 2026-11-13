@@ -1,0 +1,21 @@
+# Плагин-бандл: подключает скилл langflow-flows к DSH.
+#
+# Скилл лежит внутри пакета (skills/langflow-flows) и регистрируется отдельным
+# провайдером скиллов с изолированными корнями: includeDefaultRoots: false.
+# Так бандл не переопределяет customSkillDirs основного провайдера и ничего
+# не ломает, если тот уже настроен.
+#
+# Путь вычисляется от самого файла патча: baseUrl -> <пакет>/cordis.patch.yml,
+# dirname -> <пакет>, join 'skills' -> <пакет>/skills.
+
+- insert:
+    - id: langflow-flows-skills
+      name: '@deepseek-ai/dsh-skill-filesystem'
+      config:
+        providerName: langflow-flows
+        includeDefaultRoots: false
+        customSkillDirs:
+          - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:url').fileURLToPath(baseUrl)), 'skills')
+        dshHome: !!js process.getBuiltinModule('node:os').homedir() + '/.dsh'
+        agentsHome: !!js process.getBuiltinModule('node:os').homedir() + '/.agents'
+        watch: true

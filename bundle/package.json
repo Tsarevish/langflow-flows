@@ -1,0 +1,23 @@
+{
+  "name": "dsh-langflow-flows-skill",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Скилл langflow-flows как плагин DSH: сборка и диагностика цепочек в Langflow",
+  "keywords": [
+    "dsh-plugin",
+    "dsh-bundle",
+    "skill",
+    "langflow",
+    "mcp"
+  ],
+  "license": "MIT",
+  "files": [
+    "cordis.patch.yml",
+    "skills"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
