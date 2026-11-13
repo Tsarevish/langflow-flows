@@ -1,0 +1,16 @@
+# профили стендов: машиностроительные артефакты не коммитим
+profiles/*/components.json
+profiles/*/profile.json
+
+# Python
+__pycache__/
+*.pyc
+
+# локальные секреты и окружения
+.env
+.env.*
+*.local
+
+# служебное
+.DS_Store
+Thumbs.db
