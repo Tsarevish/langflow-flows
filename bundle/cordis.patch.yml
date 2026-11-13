@@ -1,21 +1,21 @@
 # Плагин-бандл: подключает скилл langflow-flows к DSH.
 #
-# Скилл лежит внутри пакета (skills/langflow-flows). Чтобы провайдер скиллов его
-# увидел, строка skill-filesystem расширяется: к её customSkillDirs добавляется
-# каталог скиллов этого пакета.
+# Скилл лежит внутри пакета (skills/langflow-flows). Строка skill-filesystem
+# расширяется: в её customSkillDirs добавляется каталог скиллов этого пакета.
 #
 # Почему расширение, а не второй провайдер: второй экземпляр того же модуля
-# в профиле не поднимается — плагин скиллов регистрируется один раз.
+# в профиле не поднимается — провайдер скиллов регистрируется один раз.
 #
-# Путь считается от самого файла патча:
-#   baseUrl -> <пакет>/cordis.patch.yml, dirname -> <пакет>, join 'skills' -> <пакет>/skills
+# Значение customSkillDirs вычисляется одним выражением:
+#   * всегда добавляет <пакет>/skills;
+#   * если рядом резолвится @deepseek-ai/dsh-agent-preset, сохраняет и его каталог
+#     скиллов (в этом профиле он лежит внутри приложения и может не резолвиться —
+#     тогда выражение просто вернёт только наш каталог, без падения).
 #
-# ВАЖНО: этот слой заменяет список customSkillDirs целиком. Здесь сохранён и
-# штатный каталог скиллов пресетов DSH — не удаляй первую строку списка.
+# Одна строка, без блочных скаляров: так значение остаётся валидным YAML-скаляром
+# и одинаково читается любым парсером.
 
 - id: skill-filesystem
   name: '@deepseek-ai/dsh-skill-filesystem'
   config:
-    customSkillDirs:
-      - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@deepseek-ai/dsh-agent-preset/package.json')), 'skills')
-      - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:url').fileURLToPath(baseUrl)), 'skills')
+    customSkillDirs: !!js (() => { const p = process.getBuiltinModule('node:path'), u = process.getBuiltinModule('node:url'), m = process.getBuiltinModule('node:module'); const own = p.join(p.dirname(u.fileURLToPath(baseUrl)), 'skills'); try { return [p.join(p.dirname(m.createRequire(baseUrl).resolve('@deepseek-ai/dsh-agent-preset/package.json')), 'skills'), own]; } catch (e) { return [own]; } })()
