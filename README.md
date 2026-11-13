@@ -55,7 +55,7 @@ NOTICE.md                 источники и права на материал
 DSH находит скиллы в файловой системе: каталог `<dshHome>/skills/<имя>/SKILL.md`.
 
 ```
-git clone <этот репозиторий>
+git clone https://github.com/Tsarevish/langflow-flows.git
 cd langflow-flows
 powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 ```
