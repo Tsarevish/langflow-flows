@@ -15,5 +15,5 @@ edges:
 config:
   P.template: |
     Ответь на вопрос: {question}
-  Model.openai_api_base: https://example.invalid/v1
-  Model.model_name: gpt://demo/model
+  Model.openai_api_base: https://ai.api.cloud.yandex.net/v1
+  Model.model_name: gpt://b1gtacbqthmqh9b7rt0f/deepseek-v4.1-flash/latest

@@ -1,21 +1,21 @@
 # Плагин-бандл: подключает скилл langflow-flows к DSH.
 #
-# Скилл лежит внутри пакета (skills/langflow-flows) и регистрируется отдельным
-# провайдером скиллов с изолированными корнями: includeDefaultRoots: false.
-# Так бандл не переопределяет customSkillDirs основного провайдера и ничего
-# не ломает, если тот уже настроен.
+# Скилл лежит внутри пакета (skills/langflow-flows). Чтобы провайдер скиллов его
+# увидел, строка skill-filesystem расширяется: к её customSkillDirs добавляется
+# каталог скиллов этого пакета.
 #
-# Путь вычисляется от самого файла патча: baseUrl -> <пакет>/cordis.patch.yml,
-# dirname -> <пакет>, join 'skills' -> <пакет>/skills.
+# Почему расширение, а не второй провайдер: второй экземпляр того же модуля
+# в профиле не поднимается — плагин скиллов регистрируется один раз.
+#
+# Путь считается от самого файла патча:
+#   baseUrl -> <пакет>/cordis.patch.yml, dirname -> <пакет>, join 'skills' -> <пакет>/skills
+#
+# ВАЖНО: этот слой заменяет список customSkillDirs целиком. Здесь сохранён и
+# штатный каталог скиллов пресетов DSH — не удаляй первую строку списка.
 
-- insert:
-    - id: langflow-flows-skills
-      name: '@deepseek-ai/dsh-skill-filesystem'
-      config:
-        providerName: langflow-flows
-        includeDefaultRoots: false
-        customSkillDirs:
-          - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:url').fileURLToPath(baseUrl)), 'skills')
-        dshHome: !!js process.getBuiltinModule('node:os').homedir() + '/.dsh'
-        agentsHome: !!js process.getBuiltinModule('node:os').homedir() + '/.agents'
-        watch: true
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    customSkillDirs:
+      - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@deepseek-ai/dsh-agent-preset/package.json')), 'skills')
+      - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:url').fileURLToPath(baseUrl)), 'skills')

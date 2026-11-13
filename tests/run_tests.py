@@ -50,12 +50,6 @@ def main() -> int:
     failed = 0
     cases_dir = ROOT / "tests" / "cases"
 
-    if not _profiles and not os.environ.get("LANGFLOW_PROFILE"):
-        print("нет профиля стенда — тесты валидатора не с чем сверять.")
-        print("сними профиль: python scripts/probe_stand.py --url ... --key ...")
-        print("или укажи готовый: set LANGFLOW_PROFILE=profiles/<стенд>")
-        return 0
-
     print("== плохие кейсы")
     for name, expected in sorted(CASES.items()):
         path = cases_dir / name

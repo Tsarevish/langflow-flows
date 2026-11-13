@@ -1,5 +1,10 @@
 # Источники и права
 
+## Автор
+
+Скилл `langflow-flows` — **Andrey Datsenko**. Контакты и репозиторий:
+https://github.com/Tsarevish/langflow-flows
+
 ## Код и правила скилла
 
 `SKILL.md`, `references/*` (кроме перечисленного ниже), `scripts/`, `examples/`, `tests/` —
