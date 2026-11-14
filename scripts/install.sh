@@ -1,26 +1,20 @@
 #!/usr/bin/env bash
-# Install or update the skill into a DSH skills directory (macOS / Linux).
-#
-#   ./scripts/install.sh
-#   ./scripts/install.sh ~/.claude/skills/langflow-flows
-#
-# DSH scans <dshHome>/skills for one directory per skill: <name>/SKILL.md.
+# Update packaged files; preserve installation-specific profiles and credentials.
 set -euo pipefail
-
 source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 target="${1:-$HOME/.dsh/skills/langflow-flows}"
-
-if [ ! -f "$source_dir/SKILL.md" ]; then
-  echo "SKILL.md not found next to this script: $source_dir" >&2
-  exit 1
-fi
-
-rm -rf "$target"
 mkdir -p "$target"
-cp -R "$source_dir"/. "$target"/
-find "$target" -type d -name __pycache__ -prune -exec rm -rf {} +
-find "$target" -name '*.pyc' -delete
-
-files=$(find "$target" -type f | wc -l | tr -d ' ')
-echo "installed: $target ($files files)"
-echo "check: call the skill tool with name 'langflow-flows'"
+target="$(cd "$target" && pwd)"
+case "$target/" in "$source_dir/"*) echo "Target must be outside source" >&2; exit 1;; esac
+for name in SKILL.md README.md VERIFICATION.md NOTICE.md LICENSE; do
+  [ ! -f "$source_dir/$name" ] || cp "$source_dir/$name" "$target/$name"
+done
+for folder in references examples scripts tests profiles/_template; do
+  [ -d "$source_dir/$folder" ] || continue
+  while IFS= read -r -d '' file; do
+    relative="${file#"$source_dir/"}"
+    mkdir -p "$target/$(dirname "$relative")"
+    cp "$file" "$target/$relative"
+  done < <(find "$source_dir/$folder" -type f ! -name '*.pyc' ! -path '*/__pycache__/*' -print0)
+done
+echo "Installed: $target (existing stand profiles preserved)"

@@ -1,0 +1,908 @@
+{
+  "meta": {
+    "langflow_version": "fixture-contract",
+    "schema_version": 1,
+    "purpose": "offline regression fixture, not a stand capability claim"
+  },
+  "components": {
+    "Agent": {
+      "category": "models_and_agents",
+      "display_name": "Agent",
+      "fields": {
+        "add_calculator_tool": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "add_current_date_tool": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "api_key": {
+          "options": 0,
+          "password": true,
+          "required": false,
+          "type": "str"
+        },
+        "base_url_ibm_watsonx": {
+          "options": 6,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "context_id": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "format_instructions": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "handle_parsing_errors": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "input_value": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "max_iterations": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "int"
+        },
+        "max_tokens": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "int"
+        },
+        "model": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "model"
+        },
+        "n_messages": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "int"
+        },
+        "output_schema": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "table"
+        },
+        "project_id": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "stream": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "system_prompt": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "tools": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "other"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "context_id",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "format_instructions",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "input_value",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "LanguageModel"
+          ],
+          "name": "model",
+          "required": true,
+          "type": "model"
+        },
+        {
+          "input_types": [
+            "DataFrame",
+            "Table"
+          ],
+          "name": "output_schema",
+          "required": false,
+          "type": "table"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "system_prompt",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Tool"
+          ],
+          "name": "tools",
+          "required": false,
+          "type": "other"
+        }
+      ],
+      "outputs": [
+        {
+          "group": false,
+          "name": "response",
+          "types": [
+            "Message"
+          ]
+        },
+        {
+          "group": false,
+          "name": "structured_response",
+          "types": [
+            "Data",
+            "JSON"
+          ]
+        },
+        {
+          "group": false,
+          "name": "component_as_tool",
+          "types": [
+            "Tool"
+          ]
+        }
+      ]
+    },
+    "CalculatorComponent": {
+      "category": "utilities",
+      "display_name": "Calculator",
+      "fields": {
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "expression": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "expression",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "group": false,
+          "name": "result",
+          "types": [
+            "JSON"
+          ]
+        },
+        {
+          "group": false,
+          "name": "component_as_tool",
+          "types": [
+            "Tool"
+          ]
+        }
+      ]
+    },
+    "ChatInput": {
+      "category": "input_output",
+      "display_name": "Chat Input",
+      "fields": {
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "context_id": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "files": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "file"
+        },
+        "input_value": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "sender": {
+          "options": 2,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "sender_name": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "session_id": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "should_store_message": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "context_id",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "sender_name",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "session_id",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "group": false,
+          "name": "message",
+          "types": [
+            "Message"
+          ]
+        }
+      ]
+    },
+    "ChatOutput": {
+      "category": "input_output",
+      "display_name": "Chat Output",
+      "fields": {
+        "clean_data": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "context_id": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "data_template": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "input_value": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "other"
+        },
+        "sender": {
+          "options": 2,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "sender_name": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "session_id": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "should_store_message": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "context_id",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "data_template",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Data",
+            "JSON",
+            "DataFrame",
+            "Table",
+            "Message"
+          ],
+          "name": "input_value",
+          "required": true,
+          "type": "other"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "sender_name",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "session_id",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "group": false,
+          "name": "message",
+          "types": [
+            "Message"
+          ]
+        }
+      ]
+    },
+    "ConditionalRouter": {
+      "category": "flow_controls",
+      "display_name": "If-Else",
+      "fields": {
+        "case_sensitive": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "default_route": {
+          "options": 2,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "false_case_message": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "input_text": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "str"
+        },
+        "match_text": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "str"
+        },
+        "max_iterations": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "int"
+        },
+        "operator": {
+          "options": 10,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "true_case_message": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "false_case_message",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "input_text",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "match_text",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "true_case_message",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "group": true,
+          "name": "true_result",
+          "types": [
+            "Message"
+          ]
+        },
+        {
+          "group": true,
+          "name": "false_result",
+          "types": [
+            "Message"
+          ]
+        },
+        {
+          "group": false,
+          "name": "component_as_tool",
+          "types": [
+            "Tool"
+          ]
+        }
+      ]
+    },
+    "Prompt Template": {
+      "category": "models_and_agents",
+      "display_name": "Prompt Template",
+      "fields": {
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "template": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "prompt"
+        },
+        "tool_placeholder": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "use_double_brackets": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "tool_placeholder",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "group": false,
+          "name": "prompt",
+          "types": [
+            "Message"
+          ]
+        },
+        {
+          "group": false,
+          "name": "component_as_tool",
+          "types": [
+            "Tool"
+          ]
+        }
+      ]
+    },
+    "SQLComponent": {
+      "category": "data_source",
+      "display_name": "SQL Database",
+      "fields": {
+        "add_error": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "database_url": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "str"
+        },
+        "include_columns": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "query": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "str"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "database_url",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "query",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "group": false,
+          "name": "run_sql_query",
+          "types": [
+            "Table"
+          ]
+        },
+        {
+          "group": false,
+          "name": "component_as_tool",
+          "types": [
+            "Tool"
+          ]
+        }
+      ]
+    },
+    "TextInput": {
+      "category": "input_output",
+      "display_name": "Text Input",
+      "fields": {
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "input_value": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "use_global_variable": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "input_value",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "group": false,
+          "name": "text",
+          "types": [
+            "Message"
+          ]
+        }
+      ]
+    },
+    "TextOutput": {
+      "category": "input_output",
+      "display_name": "Text Output",
+      "fields": {
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "input_value": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "input_value",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "group": false,
+          "name": "text",
+          "types": [
+            "Message"
+          ]
+        }
+      ]
+    },
+    "ext:openai:OpenAIModelComponent@official": {
+      "category": "openai",
+      "display_name": "OpenAI",
+      "fields": {
+        "api_key": {
+          "options": 0,
+          "password": true,
+          "required": true,
+          "type": "str"
+        },
+        "code": {
+          "options": 0,
+          "password": false,
+          "required": true,
+          "type": "code"
+        },
+        "input_value": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "json_mode": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "max_retries": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "int"
+        },
+        "max_tokens": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "int"
+        },
+        "model_kwargs": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "dict"
+        },
+        "model_name": {
+          "options": 21,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "openai_api_base": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "seed": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "int"
+        },
+        "stream": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "bool"
+        },
+        "system_message": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "str"
+        },
+        "temperature": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "slider"
+        },
+        "timeout": {
+          "options": 0,
+          "password": false,
+          "required": false,
+          "type": "int"
+        }
+      },
+      "inputs": [
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "input_value",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "input_types": [
+            "Message"
+          ],
+          "name": "system_message",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "group": false,
+          "name": "text_output",
+          "types": [
+            "Message"
+          ]
+        },
+        {
+          "group": false,
+          "name": "model_output",
+          "types": [
+            "LanguageModel"
+          ]
+        },
+        {
+          "group": false,
+          "name": "component_as_tool",
+          "types": [
+            "Tool"
+          ]
+        }
+      ]
+    }
+  }
+}

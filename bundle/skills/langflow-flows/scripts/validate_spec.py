@@ -8,8 +8,8 @@
 Снапшот берётся из профиля стенда (`profiles/*/components.json`). Если профиля нет —
 сначала `python scripts/probe_stand.py`.
 
-Коды: E* — сборка/запуск упадут почти наверняка. W* — сработает, но поведение
-скорее всего не то, что задумано.
+Коды: E* — блокирующие структурные ошибки. W* — ограничения/неопределённость,
+требующие оценки; успешный запуск не гарантируется.
 
 Код возврата: 0 — чисто, 1 — есть ошибки (в --strict и предупреждения), 2 — не смог
 прочитать спеку или снапшот.
@@ -22,6 +22,7 @@ import json
 import os
 import re
 import sys
+import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -67,13 +68,13 @@ def find_snapshot(explicit: str | None = None) -> Path:
     if env:
         return Path(env) / "components.json"
     if not PROFILES.exists():
-        raise SystemExit("нет каталога profiles/: сначала `python scripts/probe_stand.py`")
+        raise ValueError("нет каталога profiles/: сначала `python scripts/probe_stand.py`")
     found = sorted(PROFILES.glob("*/components.json"))
     if not found:
-        raise SystemExit("нет ни одного профиля стенда: `python scripts/probe_stand.py`")
+        raise ValueError("нет ни одного профиля стенда: `python scripts/probe_stand.py`")
     if len(found) > 1:
         names = ", ".join(str(p.parent.name) for p in found)
-        raise SystemExit(
+        raise ValueError(
             f"профилей несколько ({names}).\n"
             f"укажи --profile <каталог> или задай LANGFLOW_PROFILE"
         )
@@ -95,19 +96,23 @@ def parse_spec(text: str, findings: list[Finding]) -> Spec:
 
     def flush() -> None:
         nonlocal key, buf, multiline
-        if key and buf:
+        if key is not None:
             node, fld = key.split(".", 1)
-            spec.config.setdefault(node, {})[fld] = "\n".join(buf).strip()
+            spec.config.setdefault(node, {})[fld] = (textwrap.dedent("\n".join(buf)).rstrip("\n") if multiline else "\n".join(buf).strip())
         key, buf, multiline = None, [], False
 
     for lineno, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
+        indent = len(raw) - len(raw.lstrip())
+        if multiline and key is not None and (not line or indent > key_indent):
+            buf.append(raw if line else "")
+            continue
         if not line:
             if section == "config" and key:
                 buf.append("")
             continue
 
-        if line in ("nodes:", "edges:", "config:"):
+        if indent == 0 and line in ("nodes:", "edges:", "config:"):
             flush()
             section = line[:-1]
             continue
@@ -154,8 +159,7 @@ def parse_spec(text: str, findings: list[Finding]) -> Spec:
                 m = re.match(r"^(\w+\.\w+):\s*(.*)$", line)
                 if m:
                     flush()
-                    if key_indent is None:
-                        key_indent = indent
+                    key_indent = indent
                     key = m.group(1)
                     val = m.group(2)
                     if val == "|":
@@ -168,11 +172,7 @@ def parse_spec(text: str, findings: list[Finding]) -> Spec:
                                             f"в config ожидалось 'ID.поле: значение', получено {line[:50]!r}",
                                             f"строка {lineno}"))
                     continue
-            if key:
-                stripped = raw
-                for _ in range(4):
-                    stripped = stripped.removeprefix(" ")
-                buf.append(stripped)
+            findings.append(Finding("E002", "error", "ожидалось ID.поле: значение или отступ внутри |", f"строка {lineno}"))
 
     flush()
     return spec
@@ -183,10 +183,10 @@ def parse_spec(text: str, findings: list[Finding]) -> Spec:
 
 def load_snapshot(path: Path) -> dict:
     if not path.exists():
-        raise SystemExit(f"нет снапшота схем: {path}\nсгенерируй: python scripts/probe_stand.py")
+        raise ValueError(f"нет снапшота схем: {path}\nсгенерируй: python scripts/probe_stand.py")
     doc = json.loads(path.read_text(encoding="utf-8"))
-    if "components" not in doc:
-        raise SystemExit(f"снапшот повреждён: {path}")
+    if not isinstance(doc, dict) or not isinstance(doc.get("components"), dict) or not doc["components"]:
+        raise ValueError(f"снапшот повреждён: {path}")
     return doc
 
 
@@ -194,7 +194,9 @@ def closest(word: str, candidates, n: int = 3) -> list[str]:
     return difflib.get_close_matches(word, list(candidates), n=n, cutoff=0.6)
 
 
-def validate(spec: Spec, snap: dict) -> list[Finding]:
+def validate(spec: Spec, snap: dict, *, external_fields: set[tuple[str, str]] | None = None) -> list[Finding]:
+    """external_fields declares values the caller will bind before execution, never secrets."""
+    external_fields = external_fields or set()
     out: list[Finding] = []
     comps: dict = snap["components"]
 
@@ -206,7 +208,7 @@ def validate(spec: Spec, snap: dict) -> list[Finding]:
     types: dict[str, str] = {}
     unknown: set[str] = set()
     for nid, ntype in spec.nodes:
-        if nid in types:
+        if nid in types or nid in unknown:
             out.append(Finding("E003", "error", f"узел '{nid}' объявлен дважды", nid))
             continue
         if ntype not in comps:
@@ -268,6 +270,20 @@ def validate(spec: Spec, snap: dict) -> list[Finding]:
                     msg += f"; похоже на: {', '.join(hint)}"
                 out.append(Finding("E007", "error", msg, f"{dst}.{dip}"))
 
+        source = next((o for o in comps[types[src]]["outputs"] if o["name"] == sop), None)
+        target = next((i for i in comps[types[dst]]["inputs"] if i["name"] == dip), None)
+        if source and target:
+            produced, accepted = set(source.get("types") or []), set(target.get("input_types") or [])
+            if produced and accepted and not produced & accepted and "Any" not in accepted:
+                out.append(Finding("E012", "error", f"несовместимые типы: {sorted(produced)} -> {sorted(accepted)}", f"{src}.{sop} -> {dst}.{dip}"))
+                continue
+        if sop == "component_as_tool" and source:
+            evidence = source.get("provenance")
+            if evidence != "declared":
+                out.append(Finding("W010", "warning", "tool-порт предполагается по схеме; подтверди режим и запуск инструмента на стенде", src))
+        if sop not in outs or (dip not in ins and types[dst] != "Prompt Template"):
+            continue
+
         linked_out[src].add(sop)
         linked_in[dst].add(dip)
         graph[src].add(dst)
@@ -279,12 +295,17 @@ def validate(spec: Spec, snap: dict) -> list[Finding]:
             continue
         known = comps[types[nid]]["fields"]
         for fname, value in fields.items():
+            tpl = fields.get("template", "")
+            double = str(fields.get("use_double_brackets", "false")).lower() == "true"
+            prompt_vars = set(re.findall(r"\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}", tpl) if double else VAR_RE.findall(tpl)) if types[nid] == "Prompt Template" else set()
+            if fname in prompt_vars:
+                continue
             if fname not in known:
                 hint = closest(fname, known)
                 msg = f"у {types[nid]} нет поля '{fname}'"
                 if hint:
                     msg += f"; похоже на: {', '.join(hint)}"
-                out.append(Finding("E009", "warning", msg, f"{nid}.{fname}"))
+                out.append(Finding("E009", "error", msg, f"{nid}.{fname}"))
                 continue
             meta = known[fname] or {}
             val = str(value).strip()
@@ -292,24 +313,43 @@ def validate(spec: Spec, snap: dict) -> list[Finding]:
                 out.append(Finding("E010", "error",
                                    f"'{fname}' у {types[nid]} — поле, привязанное к переменной. "
                                    f"Запись значения в спеку снимает привязку (load_from_db) и ломает "
-                                   f"авторизацию. Убери строку из config: привязка уже стоит по умолчанию.",
+                                   f"авторизацию. Убери строку из config и проверь/создай привязку переменной отдельно.",
                                    f"{nid}.{fname}"))
-            elif not meta.get("password") and SECRET_RE.search(val):
+            elif SECRET_RE.search(val):
                 out.append(Finding("W006", "warning",
                                    f"в поле '{fname}' секрет в открытом виде — вынеси в переменную",
                                    f"{nid}.{fname}"))
+
+    # Required fields: dynamic selectors can change schema, so defer those to live validation.
+    for nid, ntype in types.items():
+        component = comps[ntype]
+        cfg = spec.config.get(nid, {})
+        dynamic_change = any(component["fields"].get(k, {}).get("real_time_refresh") for k in cfg)
+        if dynamic_change:
+            out.append(Finding("W011", "warning", "настройка меняет динамическую схему; перечитай поля/порты на стенде", nid))
+        for fname, meta in component["fields"].items():
+            if not meta or not meta.get("required") or "has_default" not in meta:
+                continue
+            present = fname in cfg and cfg[fname].strip().lower() not in ("", "null", "none")
+            if present or (nid, fname) in external_fields or fname in linked_in[nid] or (fname not in cfg and meta.get("has_default")):
+                continue
+            if meta.get("load_from_db") or meta.get("password") or meta.get("dynamic") or dynamic_change:
+                out.append(Finding("W012", "warning", "обязательное поле требует проверки привязки/динамической схемы", f"{nid}.{fname}"))
+            else:
+                out.append(Finding("E013", "error", "обязательное поле не задано и не имеет значения по умолчанию", f"{nid}.{fname}"))
 
     # --- переменные промпта против связей
     for nid, ntype in types.items():
         if ntype != "Prompt Template":
             continue
         tpl = (spec.config.get(nid) or {}).get("template", "")
-        declared = set(VAR_RE.findall(tpl))
+        double = str((spec.config.get(nid) or {}).get("use_double_brackets", "false")).lower() == "true"
+        declared = set(re.findall(r"\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}", tpl) if double else VAR_RE.findall(tpl))
         for port in linked_in[nid] - declared:
             out.append(Finding("E011", "error",
                                f"в {nid} соединено в порт '{port}', но переменной {{{port}}} в template "
                                f"нет — такого входа не существует", f"{nid}.{port}"))
-        for var in declared - linked_in[nid]:
+        for var in declared - linked_in[nid] - set(spec.config.get(nid, {})):
             out.append(Finding("W001", "warning",
                                f"переменная {{{var}}} в шаблоне {nid} ни к чему не подключена — "
                                f"останется пустой", f"{nid}.{var}"))
@@ -330,7 +370,7 @@ def validate(spec: Spec, snap: dict) -> list[Finding]:
 
     # --- секреты, которые нельзя задать в спеке
     for nid, ntype in types.items():
-        if ntype == "SQLComponent" and "database_url" not in linked_in[nid]:
+        if ntype == "SQLComponent" and "database_url" not in linked_in[nid] and (nid, "database_url") not in external_fields:
             if "database_url" not in (spec.config.get(nid) or {}):
                 out.append(Finding("W009", "warning",
                                    f"у {nid} не задана строка подключения — поле защищённое, "
@@ -346,7 +386,9 @@ def validate(spec: Spec, snap: dict) -> list[Finding]:
         if not linked_in[nid] and not linked_out[nid] and len(types) > 1 and nid not in mentioned:
             out.append(Finding("W007", "warning", f"узел {nid} ни с чем не соединён — в запуске не участвует", nid))
 
-    roots = [n for n in types if not linked_in[n]]
+    roots = [n for n, t in types.items() if t in ENTRY_TYPES]
+    if not roots:
+        roots = [n for n in types if not linked_in[n]]
     seen, stack = set(roots), list(roots)
     while stack:
         cur = stack.pop()
@@ -357,13 +399,22 @@ def validate(spec: Spec, snap: dict) -> list[Finding]:
     if not any(t in OUTPUT_TYPES for n, t in types.items() if n in seen):
         out.append(Finding("W008", "warning", "от входов нет пути до ChatOutput — цепочка обрывается"))
 
+    for root in (n for n, t in types.items() if t in ENTRY_TYPES):
+        visited, pending = {root}, [root]
+        while pending:
+            for nxt in graph[pending.pop()]:
+                if nxt not in visited:
+                    visited.add(nxt)
+                    pending.append(nxt)
+        if not any(types[n] in OUTPUT_TYPES for n in visited):
+            out.append(Finding("W013", "warning", "от этого входа нет пути к выходу", root))
     return out
 
 
 # ---------------------------------------------------------------- вывод
 
 
-def main(argv: list[str] | None = None) -> int:
+def _main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Офлайн-проверка спеки Langflow")
     ap.add_argument("spec", help="путь к .spec")
     ap.add_argument("--profile", default=None, help="каталог профиля стенда")
@@ -375,8 +426,7 @@ def main(argv: list[str] | None = None) -> int:
 
     path = Path(args.spec)
     if not path.exists():
-        print(f"нет файла: {path}", file=sys.stderr)
-        return 2
+        raise ValueError(f"нет файла: {path}")
 
     if args.snapshot:
         snap_path = Path(args.snapshot)
@@ -418,6 +468,18 @@ def main(argv: list[str] | None = None) -> int:
           f"ошибок {len(errors)}, предупреждений {len(warnings)}")
     print("РЕЗУЛЬТАТ: не пройдено" if failed else "РЕЗУЛЬТАТ: чисто")
     return 1 if failed else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        args = sys.argv[1:] if argv is None else argv
+        if "--format" in args and "json" in args:
+            print(json.dumps({"ok": False, "error": str(exc), "findings": []}, ensure_ascii=False))
+        else:
+            print(str(exc), file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

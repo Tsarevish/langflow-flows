@@ -1,9 +1,8 @@
 {
   "name": "dsh-langflow-flows-skill",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "type": "module",
   "description": "Скилл langflow-flows как плагин DSH: сборка и диагностика цепочек в Langflow",
-  "author": "Andrey Datsenko",
   "keywords": [
     "dsh-plugin",
     "dsh-bundle",

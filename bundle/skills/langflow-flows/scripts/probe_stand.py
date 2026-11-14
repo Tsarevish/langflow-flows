@@ -5,7 +5,8 @@
     python scripts/probe_stand.py --out profiles/my-stand
 
 Пишет в каталог профиля:
-  profile.md        — читаемая карточка стенда (её дополняет человек/агент)
+  profile.md        — ручная карточка (сохраняется при обновлении)
+  profile.auto.md   — измеренные сведения последней разведки
   profile.json      — те же данные машинно
   components.json   — снапшот схем компонентов (для validate_spec.py)
 
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import urllib.error
 import urllib.request
@@ -26,7 +28,7 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parent.parent
 ENV = Path.home() / ".langflow" / "env"
-NON_TOOL = {"ChatInput", "ChatOutput", "TextInput", "TextOutput", "Webhook", "Note"}
+from schema_snapshot import SCHEMA_VERSION, compact, extract_components
 
 
 # ------------------------------------------------------------------ транспорт
@@ -78,25 +80,6 @@ class Api:
 # ------------------------------------------------------------------ компоненты
 
 
-def compact(spec: dict) -> tuple[list[dict], list[dict], dict[str, dict]]:
-    outputs = []
-    for o in spec.get("outputs") or []:
-        if isinstance(o, dict):
-            outputs.append({"name": o.get("name"), "types": o.get("types") or [],
-                            "group": bool(o.get("group_outputs"))})
-    inputs, fields = [], {}
-    for name, f in (spec.get("template") or {}).items():
-        if not isinstance(f, dict):
-            continue
-        fields[name] = {"type": f.get("type"), "required": bool(f.get("required")),
-                        "password": bool(f.get("password")),
-                        "options": len(f["options"]) if isinstance(f.get("options"), list) else 0}
-        if f.get("input_types"):
-            inputs.append({"name": name, "input_types": f["input_types"],
-                           "type": f.get("type"), "required": bool(f.get("required"))})
-    return outputs, inputs, fields
-
-
 def mcp_tools(api: Api) -> dict:
     """Список инструментов встроенного MCP-сервера, если он есть."""
     status, body = api.call("/api/v1/agentic/mcp", "POST", {
@@ -133,17 +116,28 @@ def slugify(url: str) -> str:
     return f"stand-{host}"
 
 
-def main() -> int:
+def atomic_write(path: Path, text: str) -> None:
+    import tempfile
+    fd, name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(text)
+        os.replace(name, path)
+    finally:
+        Path(name).unlink(missing_ok=True)
+
+
+def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Профиль стенда Langflow")
     ap.add_argument("--url", default=None, help="адрес стенда; по умолчанию из --env")
     ap.add_argument("--key", default=None, help="API-ключ; по умолчанию из --env")
     ap.add_argument("--env", default=str(ENV), help="файл с LANGFLOW_URL и LANGFLOW_API_KEY")
     ap.add_argument("--out", default=None)
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     cfg = read_env(Path(args.env))
-    url = args.url or cfg.get("LANGFLOW_URL")
-    key = args.key if args.key is not None else cfg.get("LANGFLOW_API_KEY", "")
+    url = args.url or os.environ.get("LANGFLOW_URL") or os.environ.get("LANGFLOW_SERVER_URL") or cfg.get("LANGFLOW_URL")
+    key = args.key if args.key is not None else os.environ.get("LANGFLOW_API_KEY", cfg.get("LANGFLOW_API_KEY", ""))
 
     if not url:
         print(f"нет URL: задай --url или положи LANGFLOW_URL в {args.env}")
@@ -151,7 +145,6 @@ def main() -> int:
 
     api = Api(url, key)
     out_dir = Path(args.out) if args.out else SKILL / "profiles" / slugify(url)
-    out_dir.mkdir(parents=True, exist_ok=True)
 
     def get_json(path: str):
         st, body = api.call(path)
@@ -169,7 +162,7 @@ def main() -> int:
     st_all, allc = get_json("/api/v1/all")
     tools = mcp_tools(api)
 
-    authed = isinstance(me, dict) and me.get("username")
+    authed = st_me == 200 and isinstance(me, dict) and bool(me.get("username"))
     if not authed:
         print(f"ключ не принят: {str(me)[:200]}")
         print("нужен API-ключ Langflow: интерфейс → аватар → Settings → Langflow API → Add New")
@@ -183,25 +176,19 @@ def main() -> int:
                 "vars": [(v.get("variable_key"), bool(v.get("required"))) for v in (m.get("variables") or [])],
             })
 
-    comps = {}
-    SKIP_CATEGORIES = {"component_display_names"}  # переводы подписей, а не компоненты
-    if isinstance(allc, dict):
-        for category, types in allc.items():
-            if not isinstance(types, dict) or category in SKIP_CATEGORIES:
-                continue
-            for ctype, spec in types.items():
-                if not isinstance(spec, dict):
-                    continue
-                outputs, inputs, fields = compact(spec)
-                if ctype not in NON_TOOL and outputs:
-                    outputs.append({"name": "component_as_tool", "types": ["Tool"], "group": False})
-                comps[ctype] = {"category": category, "display_name": spec.get("display_name"),
-                                "outputs": outputs, "inputs": inputs, "fields": fields}
+    if st_all != 200 or st_version != 200 or not isinstance(version, dict) or not version.get("version"):
+        print(f"profile not updated: version HTTP {st_version}, components HTTP {st_all}")
+        return 1
+    try:
+        comps = extract_components(allc)
+    except ValueError as exc:
+        print(f"profile not updated: {exc}")
+        return 1
 
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     name = (me or {}).get("username") if isinstance(me, dict) else None
     data = {
-        "meta": {"probed_at": now, "url": args.url, "probe_version": 1},
+        "meta": {"probed_at": now, "url": url, "probe_version": 2},
         "access": {"authenticated": bool(authed), "username": name,
                    "superuser": bool((me or {}).get("is_superuser")) if isinstance(me, dict) else None},
         "version": version if st_version == 200 else {"status": st_version},
@@ -218,24 +205,31 @@ def main() -> int:
         "quirks": [],
     }
 
-    (out_dir / "profile.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
-    (out_dir / "components.json").write_text(json.dumps(
-        {"meta": {"probed_at": now, "url": args.url,
+    out_dir.mkdir(parents=True, exist_ok=True)
+    previous_path = out_dir / "profile.json"
+    previous = json.loads(previous_path.read_text(encoding="utf-8")) if previous_path.exists() else {}
+    # Preserve manual and installation-specific additions; refresh only measured fields.
+    data["limits"] = previous.get("limits", {})
+    data["quirks"] = previous.get("quirks", [])
+    data = {**previous, **data}
+    atomic_write(previous_path, json.dumps(data, ensure_ascii=False, indent=1))
+    atomic_write(out_dir / "components.json", json.dumps(
+        {"meta": {"schema_version": SCHEMA_VERSION, "probed_at": now, "url": url,
                   "langflow_version": (version or {}).get("version", "?") if isinstance(version, dict) else "?",
                   "component_count": len(comps)},
-         "components": comps}, ensure_ascii=False, indent=1, sort_keys=True), encoding="utf-8")
+         "components": comps}, ensure_ascii=False, indent=1, sort_keys=True))
 
     ver = (version or {}).get("version", "?") if isinstance(version, dict) else "?"
-    md = f"""# Стенд {args.url}
+    md = f"""# Стенд {url}
 
-Снято автоматически {now}. Дополни разделы «Ограничения» и «Особенности» —
-их нельзя получить запросами, см. `references/recon.md`.
+Снято автоматически {now}. Ручные модель, ограничения и особенности храни в
+`profile.md`, а не в этом перегенерируемом файле. См. `references/recon.md`.
 
 ## Доступ
 
 - аутентификация: {"да, " + str(name) if authed else "НЕТ — ключ не принят"}
 - суперюзер: {"да" if data["access"]["superuser"] else "нет"}
-- ключ: в `~/.langflow/env` (`LANGFLOW_API_KEY`), заголовок `x-api-key`
+- ключ: окружение `LANGFLOW_API_KEY` или локальный env-файл, заголовок `x-api-key`
 
 ## Версия и флаги
 
@@ -279,7 +273,9 @@ def main() -> int:
 - снапшот схем: `components.json` (для `validate_spec.py`)
 - машинные данные: `profile.json`
 """
-    (out_dir / "profile.md").write_text(md, encoding="utf-8")
+    atomic_write(out_dir / "profile.auto.md", md)
+    if not (out_dir / "profile.md").exists():
+        atomic_write(out_dir / "profile.md", "# Ручные настройки стенда\n\nИзмеренные данные: [profile.auto.md](profile.auto.md).\n\n## Модель\n\n## Ограничения\n\n## Особенности\n")
 
     print(f"профиль: {out_dir}")
     print(f"  версия {ver} | авторизация {'ок' if authed else 'НЕТ'} | "

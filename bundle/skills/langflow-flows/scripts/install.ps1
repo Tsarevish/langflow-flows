@@ -18,15 +18,23 @@ if (-not (Test-Path (Join-Path $source "SKILL.md"))) {
     throw "SKILL.md not found next to this script: $source"
 }
 
-if (Test-Path $Target) {
-    Get-ChildItem $Target -Recurse -Directory -Filter "__pycache__" |
-        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item $Target -Recurse -Force
-}
 New-Item -ItemType Directory -Path $Target -Force | Out-Null
-Copy-Item (Join-Path $source "*") $Target -Recurse -Force
-Get-ChildItem $Target -Recurse -Directory -Filter "__pycache__" |
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+# Update packaged files without deleting user profiles or credentials.
+$sourceRoot = [IO.Path]::GetFullPath($source).TrimEnd('\')
+$targetRoot = [IO.Path]::GetFullPath($Target).TrimEnd('\')
+if ($targetRoot -eq $sourceRoot -or $targetRoot.StartsWith($sourceRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Target must be outside the source skill directory"
+}
+$items = @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -File)
+foreach ($item in $items) {
+    $relative = $item.FullName.Substring($sourceRoot.Length + 1)
+    if ($relative -match '(^|\\)(__pycache__|\.git)(\\|$)' -or $item.Extension -eq '.pyc') { continue }
+    if ($relative.StartsWith('profiles\') -and -not $relative.StartsWith('profiles\_template\')) { continue }
+    if ($relative -notmatch '^(SKILL\.md|README\.md|VERIFICATION\.md|NOTICE\.md|LICENSE)$|^(references|examples|scripts|tests|profiles)\\') { continue }
+    $destination = Join-Path $targetRoot $relative
+    New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+    Copy-Item -LiteralPath $item.FullName -Destination $destination -Force
+}
 
 $files = (Get-ChildItem $Target -Recurse -File | Measure-Object).Count
 $kb = [math]::Round((Get-ChildItem $Target -Recurse -File | Measure-Object Length -Sum).Sum / 1KB)

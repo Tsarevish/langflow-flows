@@ -16,4 +16,4 @@ config:
   P.template: |
     Ответь на вопрос: {question}
   Model.openai_api_base: https://example.invalid/v1
-  Model.model_name: gpt://demo/model
+  Model.model_name: demo-model

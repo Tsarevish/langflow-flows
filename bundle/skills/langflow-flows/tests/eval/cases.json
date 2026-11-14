@@ -1,0 +1,144 @@
+{
+  "cases": [
+    {
+      "id": "01",
+      "title": "эхо без модели",
+      "kind": "build",
+      "spec": "01-echo.spec",
+      "input": "проверка связи",
+      "expect": "проверка связи"
+    },
+    {
+      "id": "02",
+      "title": "чат с моделью",
+      "kind": "build",
+      "spec": "02-chat-model.spec",
+      "input": "Назови столицу Франции одним словом.",
+      "expect_regex": "(?i)париж|paris"
+    },
+    {
+      "id": "03",
+      "title": "промпт-чейн",
+      "kind": "build",
+      "spec": "03-prompt-chain.spec",
+      "input": "Сколько будет 7 умножить на 6?",
+      "expect_regex": "\\b42\\b"
+    },
+    {
+      "id": "04",
+      "title": "агент с правилами",
+      "kind": "build",
+      "spec": "04-agent-rules.spec",
+      "input": "Кто написал «Войну и мир»?",
+      "expect_regex": "(?i)толст"
+    },
+    {
+      "id": "05",
+      "title": "агент и тестовая SQL-база",
+      "kind": "build",
+      "spec": "05-agent-sql.spec",
+      "input": "Верни SQL-запрос, не обращаясь к таблицам: SELECT 7 AS eval_value, 11 AS eval_other",
+      "expect_regex": "(?s)(?=.*\\beval_value\\b)(?=.*\\beval_other\\b)(?=.*\\b7\\b)(?=.*\\b11\\b)"
+    },
+    {
+      "id": "06",
+      "title": "агент и калькулятор",
+      "kind": "build",
+      "spec": "06-agent-tool.spec",
+      "input": "Сколько будет 17 умножить на 23?",
+      "expect_regex": "\\b391\\b",
+      "require_tool": "^(evaluate_expression|calculate|calculator)$"
+    },
+    {
+      "id": "07",
+      "title": "агент с историей",
+      "kind": "build",
+      "spec": "07-agent-memory.spec",
+      "input": "Как тебя зовут?",
+      "expect_regex": "(?i)ассистент|помощник|имени",
+      "steps": [
+        {
+          "session": "main",
+          "input": "Запомни код проекта: ЛИМОН-58317. Ответь: запомнил.",
+          "expect_regex": "(?i)запомнил"
+        },
+        {
+          "session": "main",
+          "input": "Какой код проекта я назвал? Верни только код.",
+          "expect": "ЛИМОН-58317"
+        },
+        {
+          "session": "isolated",
+          "input": "Какой код проекта я назвал? Если не знаешь, ответь НЕИЗВЕСТНО.",
+          "expect_regex": "(?i)неизвестно",
+          "reject_regex": "58317"
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "два шага промпта",
+      "kind": "build",
+      "spec": "08-two-step.spec",
+      "input": "Столица Японии?",
+      "expect_regex": "(?i)tokyo|токио"
+    },
+    {
+      "id": "09",
+      "title": "ветвление по ответу",
+      "kind": "build",
+      "spec": "09-router.spec",
+      "input": "Солнце — это звезда?",
+      "expect_regex": "(?i)\\b(да|yes)\\b",
+      "steps": [
+        {
+          "input": "Солнце — это звезда?",
+          "expect_regex": "(?i)\\b(да|yes)\\b",
+          "output_alias": "Da"
+        },
+        {
+          "input": "Солнце — это планета?",
+          "expect_regex": "(?i)\\b(нет|no)\\b",
+          "output_alias": "Net"
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "title": "правка: добавить промпт и снизить температуру",
+      "kind": "edit",
+      "spec": "10-base.spec",
+      "update": "10-update.spec",
+      "input": "Ответь словом: да или нет. Ты человек?",
+      "expect_regex": "(?i)\\b(нет|no)\\b"
+    },
+    {
+      "id": "11",
+      "title": "правка: достроить выход",
+      "kind": "edit",
+      "spec": "11-base.spec",
+      "update": "11-update.spec",
+      "input": "Скажи одно слово: готово.",
+      "expect_regex": "(?i)готов"
+    },
+    {
+      "id": "12",
+      "title": "составной: инструмент + история",
+      "kind": "build",
+      "spec": "12-composite.spec",
+      "input": "Посчитай 144 делить на 12.",
+      "expect_regex": "\\b12\\b",
+      "require_tool": "^(evaluate_expression|calculate|calculator)$",
+      "steps": [
+        {
+          "input": "Запомни число 144. С помощью калькулятора раздели его на 12.",
+          "expect_regex": "\\b12\\b"
+        },
+        {
+          "input": "Какое число я просил запомнить? Умножь его на 2 калькулятором.",
+          "expect_regex": "\\b288\\b"
+        }
+      ]
+    }
+  ]
+}

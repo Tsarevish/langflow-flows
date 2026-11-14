@@ -17,14 +17,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 VALIDATOR = ROOT / "scripts" / "validate_spec.py"
 
-# профиль для проверки: первый по алфавиту, если не задан явно
-_profiles = sorted((ROOT / "profiles").glob("*/components.json"))
-
-
 def profile_args() -> list[str]:
     if os.environ.get("LANGFLOW_PROFILE"):
         return ["--profile", os.environ["LANGFLOW_PROFILE"]]
-    return ["--profile", str(_profiles[0].parent)] if _profiles else []
+    return ["--snapshot", str(ROOT / "tests" / "fixtures" / "components.json")]
 
 # файл -> минимальный набор кодов, которые обязаны появиться
 CASES = {
@@ -40,9 +36,11 @@ CASES = {
 
 def run(path: Path) -> dict:
     proc = subprocess.run(
-        [sys.executable, str(VALIDATOR), str(path), "--format", "json", *profile_args()],
+        [sys.executable, "-X", "utf8", "-B", str(VALIDATOR), str(path), "--format", "json", *profile_args()],
         capture_output=True, text=True, encoding="utf-8",
     )
+    if proc.returncode not in (0, 1):
+        raise RuntimeError(f"validator failed ({proc.returncode}): {proc.stderr}")
     return json.loads(proc.stdout)
 
 
@@ -77,8 +75,13 @@ def main() -> int:
             print(f"  ok     {path.name}: 0 ошибок, {res['warnings']} предупреждений")
 
     print(f"\nитог: {'всё прошло' if not failed else f'провалов {failed}'}")
-    return 1 if failed else 0
+    import unittest
+    suite = unittest.defaultTestLoader.discover(str(ROOT / "tests"), pattern="test_*.py")
+    result = unittest.TextTestRunner(verbosity=1).run(suite)
+    return 1 if failed or not result.wasSuccessful() else 0
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     raise SystemExit(main())
